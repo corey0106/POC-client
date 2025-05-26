@@ -3,7 +3,6 @@ import axios from "axios";
 import { FixedSizeList as List } from "react-window";
 import Papa from "papaparse";
 
-// ✅ NEW: Progress bar component
 const ProgressBar = ({ progress }) => (
   <div className="w-full h-3 bg-gray-200 rounded overflow-hidden mb-4">
     <div
@@ -57,33 +56,68 @@ const ParcelsTable = () => {
   const [minAcreage, setMinAcreage] = useState("");
   const [maxAcreage, setMaxAcreage] = useState("");
 
-  // ✅ NEW: Loading state and progress
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let progress = 0;
     setIsLoading(true);
-    const interval = setInterval(() => {
-      progress += 10;
-      setLoadingProgress(Math.min(progress, 95));
-    }, 150);
+    setLoadingProgress(0);
 
-    axios
-      .get(`${process.env.REACT_APP_BACKEND_URL}/api/parcels/york`)
-      .then((res) => {
-        clearInterval(interval);
-        setLoadingProgress(100); // ✅ set to full
-        setTimeout(() => setIsLoading(false), 500); // allow bar to finish
-        setParcels(res.data);
-        setFilteredParcels(res.data);
+    const url = `${process.env.REACT_APP_BACKEND_URL}/api/parcels/york`;
+
+    fetch(url)
+      .then((response) => {
+        const contentLength = response.headers.get("Content-Length");
+        if (!contentLength) {
+          console.warn("No Content-Length header");
+        }
+        const total = contentLength ? parseInt(contentLength, 10) : null;
+
+        const reader = response.body.getReader();
+        let receivedLength = 0; // bytes received
+        let chunks = []; // array of Uint8Arrays
+
+        function read() {
+          return reader.read().then(({ done, value }) => {
+            if (done) {
+              // Combine chunks into single Uint8Array
+              const chunksAll = new Uint8Array(receivedLength);
+              let position = 0;
+              for (let chunk of chunks) {
+                chunksAll.set(chunk, position);
+                position += chunk.length;
+              }
+              const resultString = new TextDecoder("utf-8").decode(chunksAll);
+              const data = JSON.parse(resultString);
+              setParcels(data);
+              setFilteredParcels(data);
+              setLoadingProgress(100);
+              setTimeout(() => setIsLoading(false), 500);
+              return;
+            }
+
+            chunks.push(value);
+            receivedLength += value.length;
+
+            if (total) {
+              const progress = Math.round((receivedLength / total) * 100);
+              setLoadingProgress(progress);
+            } else {
+              setLoadingProgress((prev) => Math.min(prev + 5, 95));
+            }
+
+            return read();
+          });
+        }
+
+        return read();
       })
       .catch((err) => {
-        clearInterval(interval);
-        setIsLoading(false);
         console.error("Failed to load parcels:", err);
+        setIsLoading(false);
       });
   }, []);
+
 
   const handleFilter = () => {
     const filtered = parcels.filter((parcel) => {
@@ -142,7 +176,6 @@ const ParcelsTable = () => {
         York County Qualified Parcels
       </h1>
 
-      {/* ✅ NEW: Loading Bar */}
       {isLoading && <ProgressBar progress={loadingProgress} />}
 
       {!isLoading && (
@@ -152,7 +185,6 @@ const ParcelsTable = () => {
             {filteredParcels.length !== 1 && "s"}
           </div>
 
-          {/* Filters */}
           <div className="mb-6 flex flex-wrap gap-6 items-end">
             {[{
               label: "Min Zoning Score", value: minZoningFitScore, setter: setMinZoningFitScore, min: 0, max: 5, step: 1
