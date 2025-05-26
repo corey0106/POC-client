@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { FixedSizeList as List } from "react-window";
 import Papa from "papaparse";
 
+// Progress bar component
 const ProgressBar = ({ progress }) => (
   <div className="w-full h-3 bg-gray-200 rounded overflow-hidden mb-4">
     <div
@@ -12,7 +12,7 @@ const ProgressBar = ({ progress }) => (
   </div>
 );
 
-// Row renderer for each parcel
+// Row renderer
 const Row = ({ index, style, data }) => {
   const parcel = data[index];
   return (
@@ -65,59 +65,61 @@ const ParcelsTable = () => {
 
     const url = `${process.env.REACT_APP_BACKEND_URL}/api/parcels/york`;
 
-    fetch(url)
-      .then((response) => {
-        const contentLength = response.headers.get("Content-Length");
-        if (!contentLength) {
-          console.warn("No Content-Length header");
-        }
-        const total = contentLength ? parseInt(contentLength, 10) : null;
+    const fetchStream = async () => {
+      const response = await fetch(url);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let totalRead = 0;
+      let count = 0;
+      let liveParcels = [];
 
-        const reader = response.body.getReader();
-        let receivedLength = 0; // bytes received
-        let chunks = []; // array of Uint8Arrays
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalRead += value.length;
+        buffer += decoder.decode(value, { stream: true });
 
-        function read() {
-          return reader.read().then(({ done, value }) => {
-            if (done) {
-              // Combine chunks into single Uint8Array
-              const chunksAll = new Uint8Array(receivedLength);
-              let position = 0;
-              for (let chunk of chunks) {
-                chunksAll.set(chunk, position);
-                position += chunk.length;
-              }
-              const resultString = new TextDecoder("utf-8").decode(chunksAll);
-              const data = JSON.parse(resultString);
-              setParcels(data);
-              setFilteredParcels(data);
-              setLoadingProgress(100);
-              setTimeout(() => setIsLoading(false), 500);
-              return;
+        let lines = buffer.split("\n");
+        buffer = lines.pop(); // keep incomplete line in buffer
+
+        for (let line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parcel = JSON.parse(line);
+            liveParcels.push(parcel);
+            count++;
+            if (count % 50 === 0) {
+              setParcels([...liveParcels]);
+              setFilteredParcels([...liveParcels]);
+              setLoadingProgress(Math.min(95, Math.floor((count / 5000) * 100))); // assume 5000 max for smoother UX
             }
-
-            chunks.push(value);
-            receivedLength += value.length;
-
-            if (total) {
-              const progress = Math.round((receivedLength / total) * 100);
-              setLoadingProgress(progress);
-            } else {
-              setLoadingProgress((prev) => Math.min(prev + 5, 95));
-            }
-
-            return read();
-          });
+          } catch (e) {
+            console.warn("Malformed JSON line:", line);
+          }
         }
+      }
 
-        return read();
-      })
-      .catch((err) => {
-        console.error("Failed to load parcels:", err);
-        setIsLoading(false);
-      });
+      if (buffer.trim()) {
+        try {
+          const parcel = JSON.parse(buffer);
+          liveParcels.push(parcel);
+        } catch (e) {
+          console.warn("Trailing malformed line:", buffer);
+        }
+      }
+
+      setParcels(liveParcels);
+      setFilteredParcels(liveParcels);
+      setLoadingProgress(100);
+      setTimeout(() => setIsLoading(false), 300);
+    };
+
+    fetchStream().catch((err) => {
+      console.error("Error fetching stream:", err);
+      setIsLoading(false);
+    });
   }, []);
-
 
   const handleFilter = () => {
     const filtered = parcels.filter((parcel) => {
@@ -185,16 +187,17 @@ const ParcelsTable = () => {
             {filteredParcels.length !== 1 && "s"}
           </div>
 
+          {/* Filter Controls */}
           <div className="mb-6 flex flex-wrap gap-6 items-end">
             {[{
-              label: "Min Zoning Score", value: minZoningFitScore, setter: setMinZoningFitScore, min: 0, max: 5, step: 1
+              label: "Min Zoning Score", value: minZoningFitScore, setter: setMinZoningFitScore
             }, {
-              label: "Max Zoning Score", value: maxZoningFitScore, setter: setMaxZoningFitScore, min: 0, max: 5, step: 1
+              label: "Max Zoning Score", value: maxZoningFitScore, setter: setMaxZoningFitScore
             }, {
-              label: "Min Acreage", value: minAcreage, setter: setMinAcreage, min: 0, max: 10000, step: 0.01
+              label: "Min Acreage", value: minAcreage, setter: setMinAcreage
             }, {
-              label: "Max Acreage", value: maxAcreage, setter: setMaxAcreage, min: 0, max: 10000, step: 0.01
-            }].map(({ label, value, setter, min, max, step }) => (
+              label: "Max Acreage", value: maxAcreage, setter: setMaxAcreage
+            }].map(({ label, value, setter }) => (
               <div key={label} className="flex flex-col">
                 <label className="text-sm font-semibold text-gray-700 mb-2">{label}</label>
                 <input
@@ -202,8 +205,6 @@ const ParcelsTable = () => {
                   value={value}
                   onChange={(e) => setter(e.target.value)}
                   className="border border-gray-300 rounded-lg p-3 w-28 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min={min} max={max} step={step}
-                  placeholder={label.split(" ")[0]}
                 />
               </div>
             ))}
