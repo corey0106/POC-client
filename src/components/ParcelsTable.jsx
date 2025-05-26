@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FixedSizeList as List } from "react-window";
+import Papa from "papaparse";
 
+// Row renderer for each parcel
 const Row = ({ index, style, data }) => {
   const parcel = data[index];
   return (
@@ -59,15 +61,12 @@ const ParcelsTable = () => {
     const filtered = parcels.filter((parcel) => {
       const zoningScore = parcel.zoningFitScore;
       const acreage = parcel.acreage;
-
       const zoningScoreValid =
         (minZoningFitScore === "" || zoningScore >= Number(minZoningFitScore)) &&
         (maxZoningFitScore === "" || zoningScore <= Number(maxZoningFitScore));
-
       const acreageValid =
         (minAcreage === "" || acreage >= Number(minAcreage)) &&
         (maxAcreage === "" || acreage <= Number(maxAcreage));
-
       return zoningScoreValid && acreageValid;
     });
     setFilteredParcels(filtered);
@@ -81,80 +80,90 @@ const ParcelsTable = () => {
     setFilteredParcels(parcels);
   };
 
+  // High Potential Filter
+  const handleHighPotential = () => {
+    const high = parcels.filter(
+      (p) => (p.zoningFitScore ?? 0) >= 4.5 && (p.investmentScore ?? 0) >= 4.5
+    );
+    setFilteredParcels(high);
+  };
+
+  // Top 2500 Qualified Leads
+  const handleTop2500 = () => {
+    const sorted = [...parcels].sort((a, b) => {
+      const investDiff = (b.investmentScore ?? 0) - (a.investmentScore ?? 0);
+      if (investDiff !== 0) return investDiff;
+      return (b.zoningFitScore ?? 0) - (a.zoningFitScore ?? 0);
+    });
+    setFilteredParcels(sorted.slice(0, 2500));
+  };
+
+  const handleExportCSV = () => {
+    const csv = Papa.unparse(filteredParcels);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "parcels_filtered.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-8 max-w-full bg-white rounded-xl shadow-lg">
       <h1 className="text-4xl font-extrabold mb-6 text-gray-900">
-        📍 York County Qualified Parcels
+        York County Qualified Parcels
       </h1>
 
-      {/* Filtered count */}
       <div className="mb-4 text-lg text-gray-900 font-semibold select-none">
         Showing <span className="text-blue-600">{filteredParcels.length}</span> parcel
         {filteredParcels.length !== 1 && "s"}
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-wrap gap-8 items-end">
-        {[
-          {
-            label: "Min Zoning Score",
-            value: minZoningFitScore,
-            setter: setMinZoningFitScore,
-            min: 0,
-            max: 5,
-            step: 1,
-          },
-          {
-            label: "Max Zoning Score",
-            value: maxZoningFitScore,
-            setter: setMaxZoningFitScore,
-            min: 0,
-            max: 5,
-            step: 1,
-          },
-          {
-            label: "Min Acreage",
-            value: minAcreage,
-            setter: setMinAcreage,
-            min: 0,
-            max: 10000,
-            step: 0.01,
-          },
-          {
-            label: "Max Acreage",
-            value: maxAcreage,
-            setter: setMaxAcreage,
-            min: 0,
-            max: 10000,
-            step: 0.01,
-          },
-        ].map(({ label, value, setter, min, max, step }) => (
+      {/* Filters Section */}
+      <div className="mb-6 flex flex-wrap gap-6 items-end">
+        {/* Numeric Filters */}
+        {[{
+          label: "Min Zoning Score", value: minZoningFitScore, setter: setMinZoningFitScore, min: 0, max: 5, step: 1
+        }, {
+          label: "Max Zoning Score", value: maxZoningFitScore, setter: setMaxZoningFitScore, min: 0, max: 5, step: 1
+        }, {
+          label: "Min Acreage", value: minAcreage, setter: setMinAcreage, min: 0, max: 10000, step: 0.01
+        }, {
+          label: "Max Acreage", value: maxAcreage, setter: setMaxAcreage, min: 0, max: 10000, step: 0.01
+        }].map(({ label, value, setter, min, max, step }) => (
           <div key={label} className="flex flex-col">
             <label className="text-sm font-semibold text-gray-700 mb-2">{label}</label>
             <input
               type="number"
               value={value}
               onChange={(e) => setter(e.target.value)}
-              className="border border-gray-300 rounded-lg p-3 w-28 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              min={min}
-              max={max}
-              step={step}
+              className="border border-gray-300 rounded-lg p-3 w-28 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min={min} max={max} step={step}
               placeholder={label.split(" ")[0]}
             />
           </div>
         ))}
 
-        <button
-          onClick={handleFilter}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 shadow-md transition duration-300 font-semibold"
-        >
+        
+
+        <button onClick={handleHighPotential} className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold shadow-md">
+          High Potential
+        </button>
+        <button onClick={handleTop2500} className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md">
+          Top 2500 Leads
+        </button>
+
+        <button onClick={handleFilter} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md">
           Filter
         </button>
-        <button
-          onClick={handleReset}
-          className="bg-gray-300 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-400 shadow-md transition duration-300 font-semibold"
-        >
+        <button onClick={handleReset} className="bg-gray-300 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold shadow-md">
           Reset
+        </button>
+        <button onClick={handleExportCSV} className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-semibold shadow-md">
+          Export CSV
         </button>
       </div>
 
