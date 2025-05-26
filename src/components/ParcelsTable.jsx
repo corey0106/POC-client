@@ -47,14 +47,21 @@ const ParcelsTable = () => {
   const [minAcreage, setMinAcreage] = useState("");
   const [maxAcreage, setMaxAcreage] = useState("");
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     axios
       .get(`${process.env.REACT_APP_BACKEND_URL}/api/parcels/york`)
       .then((res) => {
         setParcels(res.data);
         setFilteredParcels(res.data);
+        setLoading(false);
       })
-      .catch((err) => console.error("Failed to load parcels:", err));
+      .catch((err) => 
+        {
+          console.error("Failed to load parcels:", err);
+          setLoading(false);
+        });
   }, []);
 
   const handleFilter = () => {
@@ -110,6 +117,19 @@ const ParcelsTable = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  if(loading) {
+    return (
+      <div className="flex justify-center items-center h-[400px]">
+        <div className="w-full max-w-3xl px-8">
+          <div className="text-lg font-medium mb-4 text-gray-700">Loading parcels...</div>
+          <div className="w-full h-3 bg-gray-200 rounded overflow-hidden">
+            <div className="h-full bg-blue-500 animate-pulse w-1/2 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-full bg-white rounded-xl shadow-lg">
