@@ -123,8 +123,8 @@ const ParcelsTable = () => {
       <div className="flex justify-center items-center h-[400px]">
         <div className="w-full max-w-3xl px-8">
           <div className="text-lg font-medium mb-4 text-gray-700">Loading parcels...</div>
-          <div className="w-full h-3 bg-gray-200 rounded overflow-hidden">
-            <div className="h-full bg-blue-500 animate-pulse w-1/2 rounded"></div>
+          <div className="w-full h-3 bg-gray-200 rounded overflow-hidden relative">
+            <div className="absolute top-0 left-0 h-full w-1/2 bg-blue-500 animate-slide"></div>
           </div>
         </div>
       </div>
