@@ -6,7 +6,7 @@ import Papa from "papaparse";
 const ProgressBar = ({ progress }) => (
   <div className="w-full h-3 bg-gray-200 rounded overflow-hidden mb-4">
     <div
-      className="h-full bg-blue-500 transition-all duration-300"
+      className="h-full bg-green-500 transition-all duration-300"
       style={{ width: `${progress}%` }}
     />
   </div>
@@ -151,13 +151,13 @@ const ParcelsTable = () => {
     setFilteredParcels(high);
   };
 
-  const handleTop2500 = () => {
+  const handleTop50 = () => {
     const sorted = [...parcels].sort((a, b) => {
       const investDiff = (b.investmentScore ?? 0) - (a.investmentScore ?? 0);
       if (investDiff !== 0) return investDiff;
       return (b.zoningFitScore ?? 0) - (a.zoningFitScore ?? 0);
     });
-    setFilteredParcels(sorted.slice(0, 2500));
+    setFilteredParcels(sorted.slice(0, 50));
   };
 
   const handleExportCSV = () => {
@@ -174,7 +174,7 @@ const ParcelsTable = () => {
 
   return (
     <div className="p-8 max-w-full bg-white rounded-xl shadow-lg">
-      <h1 className="text-4xl font-extrabold mb-6 text-gray-900">
+      <h1 className="text-4xl font-extrabold mb-6 text-green-500">
         York County Qualified Parcels
       </h1>
 
@@ -212,8 +212,8 @@ const ParcelsTable = () => {
             <button onClick={handleHighPotential} className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold shadow-md">
               High Potential
             </button>
-            <button onClick={handleTop2500} className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md">
-              Top 2500 Leads
+            <button onClick={handleTop50} className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md">
+              Top 50 Leads
             </button>
             <button onClick={handleFilter} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md">
               Filter

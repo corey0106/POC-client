@@ -34,11 +34,11 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-8">
       <div className="bg-white p-10 rounded shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
+        <h1 className="text-2xl font-bold mb-6 text-green-500 text-center">Login to The LandIntel</h1>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Username</label>
+            <label className="block text-green-500 font-medium text-sm  mb-2">Username</label>
             <input
               type="text"
               value={username}
@@ -48,7 +48,7 @@ const LoginPage = () => {
           </div>
 
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Password</label>
+            <label className="block text-green-500 font-medium mb-2">Password</label>
             <input
               type="password"
               value={password}
@@ -59,7 +59,7 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+            className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-700 transition"
           >
             Login
           </button>
