@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import Papa from "papaparse";
 
-// Progress bar component
 const ProgressBar = ({ progress }) => (
   <div className="w-full h-3 bg-gray-200 rounded overflow-hidden mb-4">
     <div
@@ -12,9 +11,16 @@ const ProgressBar = ({ progress }) => (
   </div>
 );
 
-// Row renderer
 const Row = ({ index, style, data }) => {
   const parcel = data[index];
+
+  const safeFormat = (value, type = 'string') => {
+    if (value == null) return type === 'string' ? "N/A" : 0;
+    if (type === 'number') return value.toFixed(2);
+    if (type === 'currency') return value.toLocaleString();
+    return value;
+  };
+
   return (
     <div
       style={style}
@@ -24,24 +30,43 @@ const Row = ({ index, style, data }) => {
     >
       <div className="w-12 text-right pr-4 font-mono text-gray-500 text-center">{index + 1}</div>
       <div className="w-36 truncate font-semibold text-blue-900 text-center" title={parcel.parcelId}>
-        {parcel.parcelId}
+        {safeFormat(parcel.parcelId)}
       </div>
       <div className="w-52 truncate text-gray-700 text-center" title={parcel.owner}>
-        {parcel.owner}
+        {safeFormat(parcel.owner)}
       </div>
       <div className="w-64 truncate text-gray-600 text-center" title={parcel.address}>
-        {parcel.address}
+        {safeFormat(parcel.address)}
       </div>
-      <div className="w-28 font-mono text-gray-900 text-center">{parcel.acreage.toFixed(2)}</div>
-      <div className="w-24 font-semibold text-indigo-700 text-center">{parcel.zoning}</div>
-      <div className="w-24 font-semibold text-green-700 text-center">{parcel.zoningFitScore}</div>
-      <div className="w-24 font-semibold text-green-700 text-center">{parcel.investmentScore}</div>
-      <div className="w-40 font-mono text-gray-900 text-center">{parcel.assessedValue.toLocaleString()}</div>
-      <div className="w-28 text-gray-700 text-center">{parcel.ownerType}</div>
-      <div className="w-24 text-gray-600 text-center">{parcel.yearsOwned ?? "N/A"}</div>
-      <div className="w-24 text-red-600 font-semibold text-center">{parcel.outOfState ? "Yes" : "No"}</div>
+      <div className="w-28 font-mono text-gray-900 text-center">
+        {safeFormat(parcel.acreage, 'number')}
+      </div>
+      <div className="w-24 font-semibold text-indigo-700 text-center">
+        {safeFormat(parcel.zoning)}
+      </div>
+      <div className="w-24 font-semibold text-green-700 text-center">
+        {safeFormat(parcel.zoningFitScore, 'number')}
+      </div>
+      <div className="w-24 font-semibold text-amber-700 text-center">
+        {safeFormat(parcel.investmentScore, 'number')}
+      </div>
+      <div className="w-28 text-gray-700 text-center">{safeFormat(parcel.ownerType)}</div>
+      <div className="w-24 text-gray-600 text-center">{safeFormat(parcel.yearsOwned)}</div>
+      <div className="w-32 text-gray-700 text-center" title={parcel.zoning_desc}>
+        {safeFormat(parcel.zoning_desc)}
+      </div>
+      <div className="w-32 text-gray-700 text-center">
+        <a
+          href={`https://www.google.com/maps?q=${parcel.gps.lat},${parcel.gps.lon}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500"
+        >
+          {safeFormat(parcel.gps.lat)} / {safeFormat(parcel.gps.lon)}
+        </a>
+      </div>
       <div className="w-48 truncate text-blue-700 text-center" title={parcel.contactInfo ?? "N/A"}>
-        {parcel.contactInfo ?? "N/A"}
+        {safeFormat(parcel.contactInfo)}
       </div>
     </div>
   );
@@ -63,7 +88,7 @@ const ParcelsTable = () => {
     setIsLoading(true);
     setLoadingProgress(0);
 
-    const url = `${process.env.REACT_APP_BACKEND_URL}/api/parcels/york`;
+    const url = `${process.env.REACT_APP_BACKEND_URL}/api/parcels/richland`;
 
     const fetchStream = async () => {
       const response = await fetch(url);
@@ -81,7 +106,7 @@ const ParcelsTable = () => {
         buffer += decoder.decode(value, { stream: true });
 
         let lines = buffer.split("\n");
-        buffer = lines.pop(); // keep incomplete line in buffer
+        buffer = lines.pop();
 
         for (let line of lines) {
           if (!line.trim()) continue;
@@ -92,7 +117,7 @@ const ParcelsTable = () => {
             if (count % 50 === 0) {
               setParcels([...liveParcels]);
               setFilteredParcels([...liveParcels]);
-              setLoadingProgress(Math.min(95, Math.floor((count / 5000) * 100))); // assume 5000 max for smoother UX
+              setLoadingProgress(Math.min(95, Math.floor((count / 5000) * 100)));
             }
           } catch (e) {
             console.warn("Malformed JSON line:", line);
@@ -175,7 +200,7 @@ const ParcelsTable = () => {
   return (
     <div className="p-8 max-w-full bg-white rounded-xl shadow-lg">
       <h1 className="text-4xl font-extrabold mb-6 text-green-500">
-        York County Qualified Parcels
+        Richland County Qualified Parcels
       </h1>
 
       {isLoading && <ProgressBar progress={loadingProgress} />}
@@ -187,7 +212,6 @@ const ParcelsTable = () => {
             {filteredParcels.length !== 1 && "s"}
           </div>
 
-          {/* Filter Controls */}
           <div className="mb-6 flex flex-wrap gap-6 items-end">
             {[{
               label: "Min Zoning Score", value: minZoningFitScore, setter: setMinZoningFitScore
@@ -226,7 +250,6 @@ const ParcelsTable = () => {
             </button>
           </div>
 
-          {/* Table Header */}
           <div className="flex bg-gray-100 font-semibold text-gray-700 rounded-t-lg select-none sticky top-0 z-20 border-b border-gray-300 shadow-sm">
             <div className="w-12 text-right pr-4 py-3 border-r border-gray-300">#</div>
             <div className="w-36 py-3 border-r border-gray-300 text-center">Parcel ID</div>
@@ -235,15 +258,14 @@ const ParcelsTable = () => {
             <div className="w-28 py-3 border-r border-gray-300 text-center">Acreage</div>
             <div className="w-24 py-3 border-r border-gray-300 text-center">Zoning</div>
             <div className="w-24 py-3 border-r border-gray-300 text-center">Zoning Score</div>
-            <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">Invest Score</div>
-            <div className="w-40 py-3 border-r border-gray-300 text-center">Assessed Value</div>
+            <div className="w-24 py-3 border-r border-gray-300 text-center">Investment Score</div>
             <div className="w-28 py-3 border-r border-gray-300 text-center">Owner Type</div>
             <div className="w-24 py-3 border-r border-gray-300 text-center">Years Owned</div>
-            <div className="w-24 px-2 py-3 border-r border-gray-300 text-center">Out of State</div>
+            <div className="w-32 py-3 border-r border-gray-300 text-center">Zoning Description</div>
+            <div className="w-32 py-3 border-r border-gray-300 text-center">GPS</div>
             <div className="w-48 py-3 text-center">Contact Info</div>
           </div>
 
-          {/* Table Rows */}
           <List
             height={600}
             itemCount={filteredParcels.length}
