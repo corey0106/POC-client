@@ -1,76 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
-import Papa from "papaparse";
-
-const ProgressBar = ({ progress }) => (
-  <div className="w-full h-3 bg-gray-200 rounded overflow-hidden mb-4">
-    <div
-      className="h-full bg-green-500 transition-all duration-300"
-      style={{ width: `${progress}%` }}
-    />
-  </div>
-);
-
-const Row = ({ index, style, data }) => {
-  const parcel = data[index];
-
-  const safeFormat = (value, type = 'string') => {
-    if (value == null) return type === 'string' ? "N/A" : 0;
-    if (type === 'number') return value.toFixed(2);
-    if (type === 'currency') return value.toLocaleString();
-    return value;
-  };
-
-  return (
-    <div
-      style={style}
-      className={`flex items-center py-4 border-b border-gray-200
-        ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-        hover:bg-blue-100 transition-colors duration-200 cursor-pointer select-none`}
-    >
-      <div className="w-12 text-right pr-4 font-mono text-gray-500 text-center">{index + 1}</div>
-      <div className="w-36 truncate font-semibold text-blue-900 text-center" title={parcel.parcelId}>
-        {safeFormat(parcel.parcelId)}
-      </div>
-      <div className="w-52 truncate text-gray-700 text-center" title={parcel.owner}>
-        {safeFormat(parcel.owner)}
-      </div>
-      <div className="w-64 truncate text-gray-600 text-center" title={parcel.address}>
-        {safeFormat(parcel.address)}
-      </div>
-      <div className="w-28 font-mono text-gray-900 text-center">
-        {safeFormat(parcel.acreage, 'number')}
-      </div>
-      <div className="w-24 font-semibold text-indigo-700 text-center">
-        {safeFormat(parcel.zoning)}
-      </div>
-      <div className="w-24 font-semibold text-green-700 text-center">
-        {safeFormat(parcel.zoningFitScore, 'number')}
-      </div>
-      <div className="w-24 font-semibold text-amber-700 text-center">
-        {safeFormat(parcel.investmentScore, 'number')}
-      </div>
-      <div className="w-28 text-gray-700 text-center">{safeFormat(parcel.ownerType)}</div>
-      <div className="w-24 text-gray-600 text-center">{safeFormat(parcel.yearsOwned)}</div>
-      <div className="w-32 text-gray-700 text-center" title={parcel.zoning_desc}>
-        {safeFormat(parcel.zoning_desc)}
-      </div>
-      <div className="w-32 text-gray-700 text-center">
-        <a
-          href={`https://www.google.com/maps?q=${parcel.gps.lat},${parcel.gps.lon}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500"
-        >
-          {safeFormat(parcel.gps.lat)} / {safeFormat(parcel.gps.lon)}
-        </a>
-      </div>
-      <div className="w-48 truncate text-blue-700 text-center" title={parcel.contactInfo ?? "N/A"}>
-        {safeFormat(parcel.contactInfo)}
-      </div>
-    </div>
-  );
-};
+import ParcelRow from "./ParcelRow";
+import ProgressBar from "./ProgressBar";
+import {
+  filterParcels,
+  getHighPotentialParcels,
+  getTop50Parcels,
+  exportParcelsToCSV,
+} from "../utils/ParcelUtils";
+import { useNavigate } from "react-router-dom";
 
 const ParcelsTable = () => {
   const [parcels, setParcels] = useState([]);
@@ -147,18 +85,14 @@ const ParcelsTable = () => {
   }, []);
 
   const handleFilter = () => {
-    const filtered = parcels.filter((parcel) => {
-      const zoningScore = parcel.zoningFitScore;
-      const acreage = parcel.acreage;
-      const zoningScoreValid =
-        (minZoningFitScore === "" || zoningScore >= Number(minZoningFitScore)) &&
-        (maxZoningFitScore === "" || zoningScore <= Number(maxZoningFitScore));
-      const acreageValid =
-        (minAcreage === "" || acreage >= Number(minAcreage)) &&
-        (maxAcreage === "" || acreage <= Number(maxAcreage));
-      return zoningScoreValid && acreageValid;
-    });
-    setFilteredParcels(filtered);
+    const result = filterParcels(
+      parcels,
+      minZoningFitScore,
+      maxZoningFitScore,
+      minAcreage,
+      maxAcreage
+    );
+    setFilteredParcels(result);
   };
 
   const handleReset = () => {
@@ -170,31 +104,25 @@ const ParcelsTable = () => {
   };
 
   const handleHighPotential = () => {
-    const high = parcels.filter(
-      (p) => (p.zoningFitScore ?? 0) >= 4.5 && (p.investmentScore ?? 0) >= 4.5
-    );
-    setFilteredParcels(high);
+    setFilteredParcels(getHighPotentialParcels(parcels));
   };
 
   const handleTop50 = () => {
-    const sorted = [...parcels].sort((a, b) => {
-      const investDiff = (b.investmentScore ?? 0) - (a.investmentScore ?? 0);
-      if (investDiff !== 0) return investDiff;
-      return (b.zoningFitScore ?? 0) - (a.zoningFitScore ?? 0);
-    });
-    setFilteredParcels(sorted.slice(0, 50));
+    setFilteredParcels(getTop50Parcels(parcels));
   };
 
   const handleExportCSV = () => {
-    const csv = Papa.unparse(filteredParcels);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "parcels_filtered.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportParcelsToCSV(filteredParcels);
+  };
+
+  const navigate = useNavigate();
+
+  const handleViewInMaps = () => {
+    if (!filteredParcels.length) {
+      alert("No parcels to display.");
+      return;
+    }
+    navigate("/map", { state: { parcels: filteredParcels } });
   };
 
   return (
@@ -233,14 +161,20 @@ const ParcelsTable = () => {
               </div>
             ))}
 
+            <button onClick={handleFilter} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md">
+              Filter
+            </button>
             <button onClick={handleHighPotential} className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold shadow-md">
               High Potential
             </button>
             <button onClick={handleTop50} className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md">
               Top 50 Leads
             </button>
-            <button onClick={handleFilter} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md">
-              Filter
+            <button
+              onClick={() => handleViewInMaps()}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold shadow-md"
+            >
+              View in Maps
             </button>
             <button onClick={handleReset} className="bg-gray-300 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold shadow-md">
               Reset
@@ -274,7 +208,7 @@ const ParcelsTable = () => {
             itemData={filteredParcels}
             className="rounded-b-lg shadow-inner"
           >
-            {Row}
+            {ParcelRow}
           </List>
         </>
       )}
