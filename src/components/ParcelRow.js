@@ -48,6 +48,16 @@ const ParcelRow = ({ index, style, data }) => {
           {safeFormat(parcel.gps.lat)} / {safeFormat(parcel.gps.lon)}
         </a>
       </div>
+      <div className="w-32 text-gray-700 text-center">
+        {parcel.highwayDistance && parcel.highwayDistance.distanceMiles !== undefined
+          ? parcel.highwayDistance.distanceMiles.toFixed(2)
+          : 'N/A'}
+      </div>
+      <div className="w-32 text-gray-700 text-center">
+        {parcel.highwayDistanceScore !== undefined && parcel.highwayDistanceScore !== null
+          ? parcel.highwayDistanceScore
+          : 'N/A'}
+      </div>
       <div className="w-48 truncate text-blue-700 text-center" title={parcel.contactInfo ?? "N/A"}>
         {safeFormat(parcel.contactInfo)}
       </div>

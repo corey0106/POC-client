@@ -21,6 +21,7 @@ const ParcelsTable = () => {
 
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCalculatingHighway, setIsCalculatingHighway] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -107,8 +108,39 @@ const ParcelsTable = () => {
     setFilteredParcels(getHighPotentialParcels(parcels));
   };
 
-  const handleTop50 = () => {
-    setFilteredParcels(getTop50Parcels(parcels));
+  const handleTop50 = async () => {
+    const top50Parcels = getTop50Parcels(parcels);
+    setFilteredParcels(top50Parcels);
+    
+    // Calculate highway distances for top 50 parcels
+    setIsCalculatingHighway(true);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/parcels/richland/highway-distances`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ parcels: top50Parcels }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFilteredParcels(data.parcels);
+        
+        // Update the main parcels array with highway data for these parcels
+        const updatedParcels = parcels.map(parcel => {
+          const updatedParcel = data.parcels.find(p => p.parcelId === parcel.parcelId);
+          return updatedParcel || parcel;
+        });
+        setParcels(updatedParcels);
+      } else {
+        console.error('Failed to calculate highway distances');
+      }
+    } catch (error) {
+      console.error('Error calculating highway distances:', error);
+    } finally {
+      setIsCalculatingHighway(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -167,8 +199,16 @@ const ParcelsTable = () => {
             <button onClick={handleHighPotential} className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold shadow-md">
               High Potential
             </button>
-            <button onClick={handleTop50} className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md">
-              Top 50 Leads
+            <button 
+              onClick={handleTop50} 
+              disabled={isCalculatingHighway}
+              className={`px-6 py-3 rounded-lg font-semibold shadow-md ${
+                isCalculatingHighway 
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
+              }`}
+            >
+              {isCalculatingHighway ? 'Calculating...' : 'Top 50 Leads'}
             </button>
             <button
               onClick={() => handleViewInMaps()}
@@ -184,6 +224,15 @@ const ParcelsTable = () => {
             </button>
           </div>
 
+          {isCalculatingHighway && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                <span className="text-blue-800 font-medium">Calculating highway distances for Top 50 parcels...</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex bg-gray-100 font-semibold text-gray-700 rounded-t-lg select-none sticky top-0 z-20 border-b border-gray-300 shadow-sm">
             <div className="w-12 text-right pr-4 py-3 border-r border-gray-300">#</div>
             <div className="w-36 py-3 border-r border-gray-300 text-center">Parcel ID</div>
@@ -197,6 +246,8 @@ const ParcelsTable = () => {
             <div className="w-24 py-3 border-r border-gray-300 text-center">Years Owned</div>
             <div className="w-32 py-3 border-r border-gray-300 text-center">Zoning Description</div>
             <div className="w-32 py-3 border-r border-gray-300 text-center">GPS</div>
+            <div className="w-32 py-3 border-r border-gray-300 text-center">Highway Distance (mi)</div>
+            <div className="w-32 py-3 border-r border-gray-300 text-center">Highway Distance Score</div>
             <div className="w-48 py-3 text-center">Contact Info</div>
           </div>
 
