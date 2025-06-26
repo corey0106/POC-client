@@ -22,7 +22,6 @@ const ParcelsTable = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCalculatingHighway, setIsCalculatingHighway] = useState(false);
-  const [highwayStatus, setHighwayStatus] = useState('unknown'); // 'unknown', 'available', 'unavailable'
 
   useEffect(() => {
     setIsLoading(true);
@@ -86,26 +85,6 @@ const ParcelsTable = () => {
     });
   }, []);
 
-  // Test highway data availability on component mount
-  useEffect(() => {
-    const testHighwayData = async () => {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/debug-highway/richland`);
-        if (response.ok) {
-          const data = await response.json();
-          setHighwayStatus(data.fileExists ? 'available' : 'unavailable');
-        } else {
-          setHighwayStatus('unavailable');
-        }
-      } catch (error) {
-        console.warn('Could not test highway data availability:', error);
-        setHighwayStatus('unknown');
-      }
-    };
-    
-    testHighwayData();
-  }, []);
-
   const handleFilter = () => {
     const result = filterParcels(
       parcels,
@@ -133,11 +112,8 @@ const ParcelsTable = () => {
     const top50Parcels = getTop50Parcels(parcels);
     setFilteredParcels(top50Parcels);
     
-    // Calculate highway distances for top 50 parcels
     setIsCalculatingHighway(true);
     try {
-      console.log(`🚀 Sending ${top50Parcels.length} parcels for highway distance calculation...`);
-      
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/parcels/richland/highway-distances`, {
         method: 'POST',
         headers: {
@@ -148,27 +124,6 @@ const ParcelsTable = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`✅ Received response:`, data);
-        
-        // Check for warnings or errors in the response
-        if (data.warning) {
-          console.warn('⚠️ Highway calculation warning:', data.warning);
-          alert(`⚠️ ${data.warning}\n\nHighway distances will show as "N/A" for all parcels.`);
-        }
-        
-        if (data.error) {
-          console.error('❌ Highway calculation error:', data.error);
-          alert(`❌ ${data.error}\n\nHighway distances will show as "N/A" for all parcels.`);
-        }
-        
-        // Log summary if available
-        if (data.summary) {
-          console.log(`📊 Highway calculation summary:`, data.summary);
-          if (data.summary.withHighwayData === 0) {
-            alert('⚠️ No highway distance data was calculated. This might be due to missing highway data files on the server.');
-          }
-        }
-        
         setFilteredParcels(data.parcels);
         
         // Update the main parcels array with highway data for these parcels
@@ -177,15 +132,11 @@ const ParcelsTable = () => {
           return updatedParcel || parcel;
         });
         setParcels(updatedParcels);
-        
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to calculate highway distances:', response.status, errorData);
-        alert(`❌ Failed to calculate highway distances: ${errorData.error || 'Unknown error'}\n\nHighway distances will show as "N/A" for all parcels.`);
+        console.error('Failed to calculate highway distances');
       }
     } catch (error) {
       console.error('Error calculating highway distances:', error);
-      alert(`❌ Network error while calculating highway distances: ${error.message}\n\nHighway distances will show as "N/A" for all parcels.`);
     } finally {
       setIsCalculatingHighway(false);
     }
@@ -280,37 +231,6 @@ const ParcelsTable = () => {
               </div>
             </div>
           )}
-
-          {/* Highway Status Indicator */}
-          <div className="mb-4 p-3 border rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-sm font-medium text-gray-700 mr-2">Highway Data Status:</span>
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                  highwayStatus === 'available' ? 'bg-green-100 text-green-800' :
-                  highwayStatus === 'unavailable' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {highwayStatus === 'available' ? '✅ Available' :
-                   highwayStatus === 'unavailable' ? '❌ Unavailable' :
-                   '⏳ Checking...'}
-                </span>
-              </div>
-              {highwayStatus === 'unavailable' && (
-                <button 
-                  onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}/api/debug-highway/richland`, '_blank')}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  Debug Info
-                </button>
-              )}
-            </div>
-            {highwayStatus === 'unavailable' && (
-              <p className="text-xs text-gray-600 mt-1">
-                Highway distance calculations will show as "N/A". The highway data file may not be deployed to the server.
-              </p>
-            )}
-          </div>
 
           <div className="flex bg-gray-100 font-semibold text-gray-700 rounded-t-lg select-none sticky top-0 z-20 border-b border-gray-300 shadow-sm">
             <div className="w-12 text-right pr-4 py-3 border-r border-gray-300">#</div>
