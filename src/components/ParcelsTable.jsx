@@ -124,7 +124,6 @@ const ParcelsTable = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setFilteredParcels(data.parcels);
         
         // Update the main parcels array with highway data for these parcels
         const updatedParcels = parcels.map(parcel => {
@@ -132,6 +131,10 @@ const ParcelsTable = () => {
           return updatedParcel || parcel;
         });
         setParcels(updatedParcels);
+        
+        // Re-apply the Top 50 ranking with the updated highway distance data
+        const reRankedTop50 = getTop50Parcels(updatedParcels);
+        setFilteredParcels(reRankedTop50);
       } else {
         console.error('Failed to calculate highway distances');
       }
@@ -207,7 +210,7 @@ const ParcelsTable = () => {
                   : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >
-              {isCalculatingHighway ? 'Calculating...' : 'Top 50 Leads'}
+              {isCalculatingHighway ? 'Calculating...' : 'Top 50 Leads (Distance Ranked)'}
             </button>
             <button
               onClick={() => handleViewInMaps()}
@@ -221,6 +224,10 @@ const ParcelsTable = () => {
             <button onClick={handleExportCSV} className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-semibold shadow-md">
               Export CSV
             </button>
+          </div>
+
+          <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <strong>Ranking Info:</strong> The "Top 50 Leads" button now prioritizes Heavy Industrial (HI), Light Industrial (LI), and M-1 parcels by distance to highways (closest first), while other parcels are ranked by investment and zoning scores.
           </div>
 
           {isCalculatingHighway && (

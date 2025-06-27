@@ -39,8 +39,18 @@ const ParcelsMapView = () => {
                 <div>
                   <strong>{parcel.owner}</strong><br />
                   {parcel.address || "No address"}<br />
+                  Zoning: {parcel.zoning}<br />
                   Zoning Score: {parcel.zoningFitScore}<br />
-                  Investment Score: {parcel.investmentScore}
+                  Investment Score: {parcel.investmentScore}<br />
+                  {parcel.highwayDistance && parcel.highwayDistance.distanceMiles !== undefined && (
+                    <>
+                      Highway Distance: {parcel.highwayDistance.distanceMiles.toFixed(2)} miles<br />
+                      Highway: {parcel.highwayDistance.roadName}<br />
+                    </>
+                  )}
+                  {parcel.highwayDistanceScore !== undefined && parcel.highwayDistanceScore !== null && (
+                    <>Highway Distance Score: {parcel.highwayDistanceScore}</>
+                  )}
                 </div>
               </Popup>
             </Marker>
