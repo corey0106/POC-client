@@ -204,13 +204,13 @@ const ParcelsTable = () => {
             <button 
               onClick={handleTop50} 
               disabled={isCalculatingHighway}
-              className={`px-6 py-3 rounded-lg font-semibold shadow-md ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold shadow-md ${
                 isCalculatingHighway 
                   ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
                   : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >
-              {isCalculatingHighway ? 'Calculating...' : 'Top 50 Leads (Distance Ranked)'}
+              {isCalculatingHighway ? 'Calculating...' : 'Top 50 Leads'}
             </button>
             <button
               onClick={() => handleViewInMaps()}
